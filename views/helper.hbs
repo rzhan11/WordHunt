@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="css/style.css" />
+        <meta charset="utf-8">
+        <title>Word Hunt Helper</title>
+    </head>
+    <body>
+        {{> top_navigation}}
+
+        <div class="triple-column">
+            <h1 style="text-align: center;">Solution Panel</h1>
+            <h3 id="solution-text" style="text-align: left; text-wrap: true"></h3>
+        </div>
+
+        <div style="text-align: center;" class="triple-column">
+            <h1>Word Hunt Helper</h1>
+            <h3>
+                Type in your puzzle and hit 'ENTER' to solve. <br>
+                Press 'ESC' to reset. <br>
+                Use 'A/D' or arrow keys to navigate Helper Panel
+            </h3>
+
+
+            <canvas id="word-hunt-canvas"></canvas>
+            <br>
+
+            <h3 id="status-text" style="color: red;"></h3>
+
+
+        </div>
+
+        <div class="triple-column">
+            <h1 style="text-align: center;">Helper Panel</h1>
+            <h3 id="helper-text" style="text-align: left;"></h3>
+        </div>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+
+        <script type="text/javascript">
+            "use strict";
+
+            var solveButton = document.getElementById("solve-button");
+            var puzzleText = document.getElementById("puzzle-text");
+            var solutionText = document.getElementById("solution-text");
+            var statusText = document.getElementById("status-text");
+            var helperText = document.getElementById("helper-text");
+
+            var wordOrder = [];
+            var wordOrderIndex = 0;
+
+            function solverRequest () {
+                var params = {
+                    "url": "solver_worker",
+                    "type": "get",
+                    "data": {"puzzle": puzzleString},
+                    "success": solverResponse,
+                };
+                statusText.style.color = "black";
+                statusText.innerHTML = "Solving...";
+                $.ajax(params);
+            }
+
+            function solverResponse (responseText) {
+                var parsed = JSON.parse(responseText);
+                if (parsed["status"] != "Valid") {
+                    solving = false;
+                    statusText.style.color = "red";
+                    statusText.innerHTML = parsed["status"];
+                } else {
+                    statusText.style.color = "black";
+                    statusText.innerHTML = "Total words: " + parsed.total_words + "<br>";
+                    statusText.innerHTML += "Total points: " + parsed.total_points + "<br>";
+                    statusText.innerHTML += "Execution time (sec): " + parsed.time + "<br>";
+
+                    solutionText.innerHTML = "";
+                    for (var i = 16; i >= 3; i--) {
+                        if (parsed.words_by_len[i].length == 0) {
+                            continue;
+                        }
+                        solutionText.innerHTML += i + " LETTERS" + "<br><br>";
+                        for (var j = 0; j < parsed.words_by_len[i].length; j++) {
+                            solutionText.innerHTML += parsed.words_by_len[i][j] + " ";
+                        }
+                        solutionText.innerHTML += "<br><br>";
+                    }
+
+                    wordOrder = parsed.word_order;
+                    wordOrderIndex = 0;
+
+                    drawWordTrace();
+                }
+            }
+
+            var outerPadding = 50;
+            var innerPadding = 12.5;
+            var squareSize = 60;
+            var circleRadius = 20;
+            var edgeWidth =  2.0 * circleRadius * 0.5;
+            var numShownWords = 10; // number of words shown in the helper panel
+
+            const canvas = document.getElementById('word-hunt-canvas');
+            canvas.width = canvas.height = 2 * outerPadding + 3 * innerPadding + 4 * squareSize;
+            const context = canvas.getContext('2d');
+
+            const GREEN = "#00ff00";
+            const BACKGROUND_GREEN = "#7da779";
+            const TAN = "#f7cf95";
+            const BLACK = "#000000";
+            const RED = "#ff0000";
+            const YELLOW = "#ffff00";
+
+            function drawBackground() {
+            	context.beginPath();
+              context.fillStyle = BACKGROUND_GREEN;
+              context.globalAlpha = 1.0;
+              context.rect(0, 0, canvas.width, canvas.height);
+              context.fill();
+            	context.closePath();
+            }
+
+            function drawBoxes() {
+                drawBackground();
+
+                context.fillStyle = TAN;
+                context.globalAlpha = 1.0;
+                for (var i = 0; i < 4; i++) {
+                    for (var j = 0; j < 4; j++) {
+                        var x = outerPadding + i * innerPadding + i * squareSize;
+                        var y = outerPadding + j * innerPadding + j * squareSize;
+                      	context.beginPath();
+                        context.rect(x, y, squareSize, squareSize);
+                        context.closePath();
+                        context.fill();
+                    }
+                }
+            }
+
+            function drawLetters (str) {
+                drawBoxes();
+
+                context.font = 'Bold 35pt sans-serif';
+                context.fillStyle = BLACK;
+                context.globalAlpha = 1.0;
+                context.textAlign = "center";
+                context.textBaseline = 'middle';
+                for (var i = 0; i < 4; i++) {
+                    for (var j = 0; j < 4; j++) {
+                        var index = i + 4 * j;
+                        if (index < str.length) {
+                            var x = outerPadding + i * innerPadding + (i + 0.5) * squareSize;
+                            var y = 5 + outerPadding + j * innerPadding + (j + 0.5) * squareSize;
+                            context.fillText(str.charAt(index), x, y);
+                        }
+                    }
+                }
+            }
+
+            function getColorGradient(i, n) {
+              return "rgb(255, " + i / n * 255 + ",0)";
+            }
+
+            function drawWordTrace() {
+                drawLetters(puzzleString);
+
+                helperText.innerHTML = "";
+                for (var i = wordOrderIndex; i < Math.min(wordOrderIndex + numShownWords, wordOrder.length); i++) {
+                    // add words to side panel
+                    if (i == wordOrderIndex) {
+                        // change font size
+                        helperText.innerHTML = "<span class=big-red>" + wordOrder[i][0] + "</span><br><br>";
+                    } else {
+                        helperText.innerHTML += wordOrder[i][0] + "<br><br>";
+                    }
+                }
+
+                i = wordOrderIndex;
+                // draw edge
+                for (var j = 0; j < wordOrder[i][1].length - 1; j++) {
+                    var start = [wordOrder[i][1][j][1], wordOrder[i][1][j][0]];
+                    var end = [wordOrder[i][1][j + 1][1], wordOrder[i][1][j + 1][0]];
+                    drawEdge(start, end, getColorGradient(j, wordOrder[i][1].length));
+                }
+
+                // draw dot
+                for (var j = 0; j < wordOrder[i][1].length; j++) {
+                    var pair = [wordOrder[i][1][j][1], wordOrder[i][1][j][0]];
+
+                    if (j == 0) {
+                        var x = outerPadding + pair[0] * innerPadding + pair[0] * squareSize;
+                        var y = outerPadding + pair[1] * innerPadding + pair[1] * squareSize;
+                        context.beginPath();
+                        context.rect(x, y, squareSize, squareSize);
+                        context.closePath();
+
+                        context.fillStyle = RED;
+                        context.globalAlpha = 0.75;
+                        context.fill();
+                    } else {
+                        // var x = outerPadding + pair[0] * innerPadding + (pair[0] + 0.5) * squareSize;
+                        // var y = outerPadding + pair[1] * innerPadding + (pair[1] + 0.5) * squareSize;
+                        //
+                        // context.beginPath();
+                        // context.arc(x, y, circleRadius, 0, 2 * Math.PI, false);
+                        // context.closePath();
+                        //
+                        // context.fillStyle = getColorGradient(j, wordOrder[i][1].length);
+                        // context.globalAlpha = 0.4;
+                        // context.fill();
+                        // context.globalAlpha = 1.0;
+                    }
+
+                }
+
+            }
+
+            function drawEdge (start, end, color) {
+                var start_x = outerPadding + start[0] * innerPadding + (start[0] + 0.5) * squareSize;
+                var start_y = outerPadding + start[1] * innerPadding + (start[1] + 0.5) * squareSize;
+                var end_x = outerPadding + end[0] * innerPadding + (end[0] + 0.5) * squareSize;
+                var end_y = outerPadding + end[1] * innerPadding + (end[1] + 0.5) * squareSize;
+                var dx = end[0] - start[0];
+                var dy = end[1] - start[1];
+                var magnitude = Math.sqrt(dx * dx + dy * dy);
+                var x_offset = -dy / magnitude * edgeWidth / 2;
+                var y_offset = dx / magnitude * edgeWidth / 2;
+
+
+                context.beginPath();
+                context.moveTo(start_x + x_offset, start_y + y_offset);
+                context.lineTo(start_x - x_offset, start_y - y_offset);
+                context.lineTo(end_x - x_offset, end_y - y_offset);
+                context.lineTo(end_x + x_offset, end_y + y_offset);
+                context.lineTo(start_x + x_offset, start_y + y_offset);
+                context.closePath();
+
+                context.fillStyle = color;
+                context.globalAlpha = 1;
+                context.fill();
+                context.globalAlpha = 1.0;
+            }
+
+            drawBoxes();
+
+            var puzzleString = "";
+            var solving = false;
+            var codeA = 65;
+            var codeZ = 90;
+
+            document.addEventListener('keydown', (e) => {
+                if (solving) {
+                    if (e.key == "a" || e.code === "ArrowLeft") {
+                        wordOrderIndex = Math.max(0, wordOrderIndex - 1);
+                        drawWordTrace();
+                    }
+                    if (e.key == "d" || e.code === "ArrowRight") {
+                        wordOrderIndex = Math.min(wordOrder.length - 1, wordOrderIndex + 1);
+                        drawWordTrace();
+                    }
+                } else {
+                    if (e.keyCode >= codeA && e.keyCode <= codeZ) {
+                        if (puzzleString.length < 16) {
+                            puzzleString += e.key.toUpperCase();
+                            drawLetters(puzzleString);
+                        }
+                    }
+
+                    if (e.code == "Backspace") {
+                        if (puzzleString.length > 0) {
+                            puzzleString = puzzleString.substr(0, puzzleString.length - 1);
+                            drawLetters(puzzleString);
+                        }
+                    }
+
+                    if (e.code == "Enter") {
+                        solutionText.style.color = "black";
+                        solving = true;
+                        solverRequest();
+                    }
+                }
+
+
+                if (e.code == "Escape") {
+                    puzzleString = "";
+                    solving = false;
+                    solutionText.innerHTML = "";
+                    statusText.innerHTML = "";
+                    helperText.innerHTML = "";
+                    drawLetters(puzzleString);
+                }
+            });
+
+
+        </script>
+
+    </body>
+</html>

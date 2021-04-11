@@ -1,0 +1,54 @@
+ul {
+    list-style-type: none;
+}
+
+div.top-nav {
+    position: relative;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: auto;
+    height: 50px;
+    width: auto;
+}
+
+ul.top-horizontal {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+}
+
+/*float li's left*/
+.lefty {
+    float: left;
+}
+
+/*float li's right*/
+.righty {
+    float: right;
+}
+
+.top-menu a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+.top-menu a:hover {
+    background-color: #111;
+}
+
+.triple-column {
+    float: left;
+    width: 33.33%;
+}
+
+.big-red {
+    color: red;
+    font-size: 20pt;
+    font-weight: bold;
+}
